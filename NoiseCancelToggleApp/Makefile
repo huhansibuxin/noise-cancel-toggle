@@ -1,4 +1,4 @@
-﻿TARGET := iphone:clang:latest:16.0
+TARGET := iphone:clang:latest:16.0
 ARCHS = arm64e
 
 include $(THEOS)/makefiles/common.mk
@@ -7,7 +7,7 @@ APPLICATION_NAME = NoiseCancelToggle
 $(APPLICATION_NAME)_FILES = main.m AppDelegate.m
 $(APPLICATION_NAME)_CFLAGS = -fobjc-arc
 $(APPLICATION_NAME)_LDFLAGS = -undefined dynamic_lookup
-$(APPLICATION_NAME)_INSTALL_PATH = /var/jb/Applications
+$(APPLICATION_NAME)_INSTALL_PATH = /Applications
 
 include $(THEOS_MAKE_PATH)/application.mk
 
