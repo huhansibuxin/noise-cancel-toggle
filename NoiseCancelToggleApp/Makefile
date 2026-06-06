@@ -8,7 +8,7 @@ $(APPLICATION_NAME)_FILES = main.m AppDelegate.m
 $(APPLICATION_NAME)_CFLAGS = -fobjc-arc
 $(APPLICATION_NAME)_LDFLAGS = -undefined dynamic_lookup
 $(APPLICATION_NAME)_INSTALL_PATH = /var/jb/Applications
-$(APPLICATION_NAME)_CODESIGN_FLAGS = -Sentitlements.plist
+$(APPLICATION_NAME)_CODESIGN_FLAGS = -S$(CURDIR)/NoiseCancelToggleApp/entitlements.plist
 
 include $(THEOS_MAKE_PATH)/application.mk
 
