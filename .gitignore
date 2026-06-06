@@ -1,0 +1,7 @@
+.theos/
+packages/
+._*
+*.deb
+NoiseCancelToggleApp/_output/
+NoiseCancelToggleApp/.theos/
+NoiseCancelToggleApp/obj/
