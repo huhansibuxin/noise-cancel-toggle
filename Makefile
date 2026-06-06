@@ -1,4 +1,4 @@
-TARGET := iphone:clang:latest:16.0
+﻿TARGET := iphone:clang:latest:16.0
 INSTALL_TARGET_PROCESSES = SpringBoard
 ARCHS = arm64e
 THEOS_PACKAGE_SCHEME = rootless
@@ -16,6 +16,7 @@ SUBPROJECTS += NoiseCancelToggleApp
 include $(THEOS_MAKE_PATH)/aggregate.mk
 
 before-package::
-	@mkdir -p $(THEOS_STAGING_DIR)/var/jb/Applications/NoiseCancelToggle.app
-	cp -r NoiseCancelToggleApp/_output/* $(THEOS_STAGING_DIR)/var/jb/Applications/NoiseCancelToggle.app/
+	@mkdir -p $(THEOS_STAGING_DIR)/var/jb/Applications
+	rm -rf $(THEOS_STAGING_DIR)/var/jb/Applications/NoiseCancelToggle.app
+	cp -a NoiseCancelToggleApp/_output/NoiseCancelToggle.app $(THEOS_STAGING_DIR)/var/jb/Applications/
 	@echo "App bundled into package"
