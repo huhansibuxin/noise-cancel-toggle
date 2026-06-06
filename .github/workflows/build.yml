@@ -17,6 +17,9 @@ jobs:
           git clone --recursive https://github.com/theos/theos.git ${{ runner.temp }}/theos
           echo "THEOS=${{ runner.temp }}/theos" >> $GITHUB_ENV
 
+      - name: Install ldid
+        run: brew install ldid
+
       - name: Setup SDK
         run: |
           curl -fsSL https://github.com/theos/sdks/archive/refs/heads/master.tar.gz -o /tmp/sdks.tar.gz
