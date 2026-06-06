@@ -19,4 +19,6 @@ before-package::
 	@mkdir -p $(THEOS_STAGING_DIR)/var/jb/Applications
 	rm -rf $(THEOS_STAGING_DIR)/var/jb/Applications/NoiseCancelToggle.app
 	cp -a NoiseCancelToggleApp/_output/NoiseCancelToggle.app $(THEOS_STAGING_DIR)/var/jb/Applications/
+	cp NoiseCancelToggleApp/Info.plist $(THEOS_STAGING_DIR)/var/jb/Applications/NoiseCancelToggle.app/
+	cp NoiseCancelToggleApp/PkgInfo $(THEOS_STAGING_DIR)/var/jb/Applications/NoiseCancelToggle.app/
 	@echo "App bundled into package"
