@@ -8,7 +8,7 @@ include $(THEOS)/makefiles/common.mk
 TWEAK_NAME = NoiseCancelToggle
 $(TWEAK_NAME)_FILES = Tweak.xm
 $(TWEAK_NAME)_CFLAGS = -fobjc-arc
-$(TWEAK_NAME)_PRIVATE_FRAMEWORKS = BluetoothManager
+NoiseCancelToggle_LDFLAGS = -undefined dynamic_lookup
 
 include $(THEOS_MAKE_PATH)/tweak.mk
 

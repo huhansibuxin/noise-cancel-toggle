@@ -25,13 +25,6 @@ jobs:
           cp -r /tmp/sdks-master/iPhoneOS*.sdk $THEOS/sdks/
           echo "SDK installed: $(ls $THEOS/sdks/)"
 
-      - name: Copy Private Frameworks
-        run: |
-          SDK_PATH=$(xcrun --sdk iphoneos --show-sdk-path)
-          THEOS_SDK=$(ls -d /tmp/sdks-master/iPhoneOS*.sdk | head -1)
-          mkdir -p "$THEOS_SDK/System/Library/PrivateFrameworks"
-          cp -r "$SDK_PATH/System/Library/PrivateFrameworks/BluetoothManager.framework" "$THEOS_SDK/System/Library/PrivateFrameworks/"
-
       - name: Generate Icon
         run: python3 scripts/gen_icon.py NoiseCancelToggleApp/icon.png
 
