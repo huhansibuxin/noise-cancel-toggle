@@ -5,7 +5,7 @@ include $(THEOS)/makefiles/common.mk
 
 APPLICATION_NAME = NoiseCancelToggle
 $(APPLICATION_NAME)_FILES = main.m AppDelegate.m
-$(APPLICATION_NAME)_CFLAGS = -fobjc-arc
+$(APPLICATION_NAME)_CFLAGS = -fobjc-arc -Wno-deprecated-declarations
 $(APPLICATION_NAME)_LDFLAGS = -undefined dynamic_lookup
 $(APPLICATION_NAME)_INSTALL_PATH = /Applications
 
