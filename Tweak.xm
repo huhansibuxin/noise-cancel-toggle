@@ -34,7 +34,7 @@ static void showToggleBanner(NSString *message, BOOL success) {
         UIWindow *keyWindow = scene.keyWindow;
         if (!keyWindow) return;
 
-        CGFloat topOffset = [UIApplication sharedApplication].statusBarFrame.size.height + 8;
+        CGFloat topOffset = scene.statusBarManager.statusBarFrame.size.height + 8;
         CGFloat bannerW = keyWindow.bounds.size.width - 24;
         CGFloat bannerH = 52;
 
@@ -111,18 +111,11 @@ static void showToggleBanner(NSString *message, BOOL success) {
             NSInteger current = [dev listeningMode];
             NSLog(@"[NoiseCancelToggle] Current listeningMode: %ld", (long)current);
 
-            /* Cycle: Off(0) → ANC(1) → Transparency(2) → Off(0) ... */
-            NSInteger next;
-            switch (current) {
-                case 0: next = 1; break;
-                case 1: next = 2; break;
-                case 2: next = 0; break;
-                case 3: next = 1; break;  /* Adaptive → ANC */
-                default: next = 1; break;
-            }
+            /* Toggle between ANC(1) and Transparency(2) only */
+            NSInteger next = (current == 1) ? 2 : 1;
 
             BOOL result = [dev setListeningMode:next];
-            NSLog(@"[NoiseCancelToggle] setListeningMode:%ld → %@", (long)next, result ? @"OK" : @"FAIL");
+            NSLog(@"[NoiseCancelToggle] setListeningMode:%ld -> %@", (long)next, result ? @"OK" : @"FAIL");
 
             if (result) {
                 showToggleBanner([NSString stringWithFormat:@"已切换至 %@", modeName(next)], YES);
