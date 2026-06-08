@@ -17,56 +17,15 @@
 - (NSString *)applicationBundleIdentifier;
 @end
 
-@interface SBLeafIcon : SBIcon
-- (void)launchFromLocation:(CGPoint)arg1 context:(id)arg2;
+@interface SBIconView : UIView
+- (SBIcon *)icon;
 @end
 
-/* ========== Banner notification helper ========== */
-static NSString *modeName(NSInteger mode) {
-    switch (mode) {
-        case 1: return @"降噪";
-        case 2: return @"通透";
-        default: return @"未知";
-    }
-}
+/* Forward declarations */
+static void showToggleBanner(NSString *message, BOOL success);
+static BOOL performToggle(void);
 
-static BOOL performToggle(void) {
-    BluetoothManager *btMgr = [%c(BluetoothManager) sharedInstance];
-    if (!btMgr) {
-        showToggleBanner(@"蓝牙服务不可用", NO);
-        return NO;
-    }
-
-    NSArray *devices = [btMgr connectedDevices];
-    if (!devices || devices.count == 0) {
-        showToggleBanner(@"未连接蓝牙设备", NO);
-        return NO;
-    }
-
-    for (BluetoothDevice *dev in devices) {
-        if (![dev isAppleAudioDevice]) continue;
-
-        NSInteger current = [dev listeningMode];
-        NSLog(@"[NoiseCancelToggle] Current listeningMode: %ld", (long)current);
-
-        /* Toggle between ANC(1) and Transparency(2) */
-        NSInteger next = (current == 1) ? 2 : 1;
-
-        BOOL result = [dev setListeningMode:next];
-        NSLog(@"[NoiseCancelToggle] setListeningMode:%ld -> %@", (long)next, result ? @"OK" : @"FAIL");
-
-        if (result) {
-            showToggleBanner([NSString stringWithFormat:@"已切换至 %@", modeName(next)], YES);
-        } else {
-            showToggleBanner(@"切换失败，请重试", NO);
-        }
-        return result;
-    }
-
-    showToggleBanner(@"未找到 AirPods", NO);
-    return NO;
-}
-
+/* ========== Notification banner ========== */
 static void showToggleBanner(NSString *message, BOOL success) {
     dispatch_async(dispatch_get_main_queue(), ^{
         UIWindowScene *scene = (UIWindowScene *)[UIApplication sharedApplication].connectedScenes.anyObject;
@@ -119,52 +78,86 @@ static void showToggleBanner(NSString *message, BOOL success) {
     });
 }
 
-/* ========== Tweak entry point ========== */
-%ctor {
-    NSLog(@"[NoiseCancelToggle] v1.0.1 injected into SpringBoard");
+/* ========== Toggle logic ========== */
+static BOOL performToggle(void) {
+    BluetoothManager *btMgr = [%c(BluetoothManager) sharedInstance];
+    if (!btMgr) {
+        showToggleBanner(@"蓝牙服务不可用", NO);
+        return NO;
+    }
 
-    BOOL hasIconTapped = [%c(SBIconListView) instancesRespondToSelector:@selector(iconTapped:)];
-    BOOL hasLaunch = [%c(SBLeafIcon) instancesRespondToSelector:@selector(launchFromLocation:context:)];
-    NSLog(@"[NoiseCancelToggle] SBIconListView iconTapped: %@", hasIconTapped ? @"YES" : @"NO");
-    NSLog(@"[NoiseCancelToggle] SBLeafIcon launchFromLocation:context: %@", hasLaunch ? @"YES" : @"NO");
+    NSArray *devices = [btMgr connectedDevices];
+    if (!devices || devices.count == 0) {
+        showToggleBanner(@"未连接蓝牙设备", NO);
+        return NO;
+    }
+
+    for (BluetoothDevice *dev in devices) {
+        if (![dev isAppleAudioDevice]) continue;
+
+        NSInteger current = [dev listeningMode];
+        NSLog(@"[NoiseCancelToggle] Current listeningMode: %ld", (long)current);
+
+        /* Toggle between ANC(1) and Transparency(2) */
+        NSInteger next = (current == 1) ? 2 : 1;
+
+        BOOL result = [dev setListeningMode:next];
+        NSLog(@"[NoiseCancelToggle] setListeningMode:%ld -> %@", (long)next, result ? @"OK" : @"FAIL");
+
+        if (result) {
+            NSString *name = (next == 1) ? @"降噪" : @"通透";
+            showToggleBanner([NSString stringWithFormat:@"已切换至 %@", name], YES);
+        } else {
+            showToggleBanner(@"切换失败，请重试", NO);
+        }
+        return result;
+    }
+
+    showToggleBanner(@"未找到 AirPods", NO);
+    return NO;
 }
 
-/*
- * Primary hook: SBIconListView iconTapped:
- * If this method still exists in iOS 16, intercept here.
- */
-%hook SBIconListView
+/* ========== Tweak entry ========== */
+%ctor {
+    NSLog(@"[NoiseCancelToggle] v1.0.2 injected into SpringBoard");
 
+    Class lv = %c(SBIconListView);
+    Class iv = %c(SBIconView);
+    if (lv) {
+        BOOL a = [lv instancesRespondToSelector:@selector(iconTapped:)];
+        NSLog(@"[NoiseCancelToggle] SBIconListView.iconTapped: %@", a ? @"YES" : @"NO");
+    }
+    if (iv) {
+        BOOL b = [iv instancesRespondToSelector:@selector(_handleTap:)];
+        NSLog(@"[NoiseCancelToggle] SBIconView._handleTap: %@", b ? @"YES" : @"NO");
+        BOOL c = [iv instancesRespondToSelector:@selector(icon)];
+        NSLog(@"[NoiseCancelToggle] SBIconView.icon: %@", c ? @"YES" : @"NO");
+    }
+}
+
+/* --- Hook 1: SBIconListView.iconTapped: --- */
+%hook SBIconListView
 - (void)iconTapped:(SBIcon *)icon {
     NSString *bundleID = [icon applicationBundleIdentifier];
-
     if ([bundleID isEqualToString:@"com.huhansibuxin.noisecanceltoggle"]) {
-        NSLog(@"[NoiseCancelToggle] Intercepted via SBIconListView iconTapped:");
+        NSLog(@"[NoiseCancelToggle] iconTapped: intercepted");
         performToggle();
         return;
     }
-
     %orig;
 }
-
 %end
 
-/*
- * Fallback hook: SBLeafIcon launchFromLocation:context:
- * More reliable on iOS 16 — this is called when any app icon is launched.
- */
-%hook SBLeafIcon
-
-- (void)launchFromLocation:(CGPoint)arg1 context:(id)arg2 {
-    NSString *bundleID = [self applicationBundleIdentifier];
-
+/* --- Hook 2: SBIconView._handleTap: (iOS 16 primary path) --- */
+%hook SBIconView
+- (void)_handleTap:(UITapGestureRecognizer *)gesture {
+    SBIcon *icon = [self icon];
+    NSString *bundleID = [icon applicationBundleIdentifier];
     if ([bundleID isEqualToString:@"com.huhansibuxin.noisecanceltoggle"]) {
-        NSLog(@"[NoiseCancelToggle] Intercepted via SBLeafIcon launchFromLocation:context:");
+        NSLog(@"[NoiseCancelToggle] _handleTap: intercepted");
         performToggle();
         return;
     }
-
     %orig;
 }
-
 %end
