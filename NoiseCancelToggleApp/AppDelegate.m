@@ -18,42 +18,59 @@
 @implementation AppDelegate
 
 - (BOOL)application:(UIApplication *)application didFinishLaunchingWithOptions:(NSDictionary *)launchOptions {
-    /*
-     * Fallback: if the tweak fails to intercept iconTapped: in SpringBoard,
-     * the app itself will be launched. We perform the toggle and exit
-     * immediately without showing any UI.
-     */
-    self.window = [[UIWindow alloc] initWithFrame:[UIScreen mainScreen].bounds];
-    self.window.hidden = YES;
+    /* No visible UI — window stays nil so SpringBoard remains visible underneath */
+    self.window = nil;
+
+    NSString *resultTitle = @"降噪切换";
+    NSString *resultBody = nil;
 
     BluetoothManager *btMgr = [NSClassFromString(@"BluetoothManager") sharedInstance];
     if (!btMgr) {
-        exit(0);
+        resultBody = @"蓝牙服务不可用";
+        goto sendNotification;
     }
 
     NSArray *devices = [btMgr connectedDevices];
     if (!devices || devices.count == 0) {
-        exit(0);
+        resultBody = @"未连接蓝牙设备";
+        goto sendNotification;
     }
 
+    BOOL toggled = NO;
     for (id dev in devices) {
         if (![dev isAppleAudioDevice]) continue;
 
         NSInteger current = [dev listeningMode];
-        NSInteger next;
-        switch (current) {
-            case 0: next = 1; break;
-            case 1: next = 2; break;
-            case 2: next = 0; break;
-            case 3: next = 1; break;
-            default: next = 1; break;
-        }
+        NSInteger next = (current == 1) ? 2 : 1;
 
-        [dev setListeningMode:next];
+        BOOL ok = [dev setListeningMode:next];
+        toggled = YES;
+        resultBody = ok ? [NSString stringWithFormat:@"已切换至 %@", (next == 1) ? @"降噪" : @"通透"]
+                        : @"切换失败，请重试";
         break;
     }
 
-    exit(0);
+    if (!toggled) {
+        resultBody = @"未找到 AirPods";
+    }
+
+sendNotification:
+    /* Use UILocalNotification — it pops from Notification Center as a banner */
+    UILocalNotification *notif = [[UILocalNotification alloc] init];
+    if (@available(iOS 8.2, *)) {
+        notif.alertTitle = resultTitle;
+    }
+    notif.alertBody = resultBody ?: @"未知错误";
+    notif.fireDate = [NSDate dateWithTimeIntervalSinceNow:0.01];
+    notif.timeZone = [NSTimeZone defaultTimeZone];
+    notif.soundName = nil;
+    [[UIApplication sharedApplication] scheduleLocalNotification:notif];
+
+    /* Give notification time to fire, then exit to kill the app instantly */
+    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.5 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+        exit(0);
+    });
+
     return YES;
 }
 

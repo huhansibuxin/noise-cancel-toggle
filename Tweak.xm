@@ -1,5 +1,9 @@
 #import <UIKit/UIKit.h>
 
+/* Forward declarations */
+static void showToggleBanner(NSString *message, BOOL success);
+static BOOL performToggle(void);
+
 /* BluetoothManager private framework interfaces */
 @interface BluetoothDevice : NSObject
 - (BOOL)isAppleAudioDevice;
@@ -21,9 +25,11 @@
 - (SBIcon *)icon;
 @end
 
-/* Forward declarations */
-static void showToggleBanner(NSString *message, BOOL success);
-static BOOL performToggle(void);
+/* SBApplication — reliable fallback hook point */
+@interface SBApplication : NSObject
+- (NSString *)bundleIdentifier;
+- (void)activate;
+@end
 
 /* ========== Notification banner ========== */
 static void showToggleBanner(NSString *message, BOOL success) {
@@ -43,21 +49,16 @@ static void showToggleBanner(NSString *message, BOOL success) {
         container.alpha = 0;
         container.transform = CGAffineTransformMakeTranslation(0, -bannerH);
 
-        UIImageView *iconView = [[UIImageView alloc] initWithFrame:CGRectMake(12, 12, 24, 24)];
-        iconView.contentMode = UIViewContentModeScaleAspectFit;
-        iconView.tintColor = success ? [UIColor systemGreenColor] : [UIColor systemRedColor];
-
-        UILabel *titleLabel = [[UILabel alloc] initWithFrame:CGRectMake(44, 6, bannerW - 56, 18)];
+        UILabel *titleLabel = [[UILabel alloc] initWithFrame:CGRectMake(12, 6, bannerW - 24, 18)];
         titleLabel.text = @"降噪切换";
         titleLabel.font = [UIFont boldSystemFontOfSize:14];
         titleLabel.textColor = [UIColor whiteColor];
 
-        UILabel *msgLabel = [[UILabel alloc] initWithFrame:CGRectMake(44, 26, bannerW - 56, 18)];
+        UILabel *msgLabel = [[UILabel alloc] initWithFrame:CGRectMake(12, 26, bannerW - 24, 18)];
         msgLabel.text = message;
         msgLabel.font = [UIFont systemFontOfSize:13];
         msgLabel.textColor = [UIColor lightGrayColor];
 
-        [container addSubview:iconView];
         [container addSubview:titleLabel];
         [container addSubview:msgLabel];
         [keyWindow addSubview:container];
@@ -98,18 +99,15 @@ static BOOL performToggle(void) {
         NSInteger current = [dev listeningMode];
         NSLog(@"[NoiseCancelToggle] Current listeningMode: %ld", (long)current);
 
-        /* Toggle between ANC(1) and Transparency(2) */
         NSInteger next = (current == 1) ? 2 : 1;
 
         BOOL result = [dev setListeningMode:next];
         NSLog(@"[NoiseCancelToggle] setListeningMode:%ld -> %@", (long)next, result ? @"OK" : @"FAIL");
 
-        if (result) {
-            NSString *name = (next == 1) ? @"降噪" : @"通透";
-            showToggleBanner([NSString stringWithFormat:@"已切换至 %@", name], YES);
-        } else {
-            showToggleBanner(@"切换失败，请重试", NO);
-        }
+        NSString *name = (next == 1) ? @"降噪" : @"通透";
+        showToggleBanner(result ? [NSString stringWithFormat:@"已切换至 %@", name]
+                                : @"切换失败，请重试",
+                         result);
         return result;
     }
 
@@ -119,27 +117,13 @@ static BOOL performToggle(void) {
 
 /* ========== Tweak entry ========== */
 %ctor {
-    NSLog(@"[NoiseCancelToggle] v1.0.2 injected into SpringBoard");
-
-    Class lv = %c(SBIconListView);
-    Class iv = %c(SBIconView);
-    if (lv) {
-        BOOL a = [lv instancesRespondToSelector:@selector(iconTapped:)];
-        NSLog(@"[NoiseCancelToggle] SBIconListView.iconTapped: %@", a ? @"YES" : @"NO");
-    }
-    if (iv) {
-        BOOL b = [iv instancesRespondToSelector:@selector(_handleTap:)];
-        NSLog(@"[NoiseCancelToggle] SBIconView._handleTap: %@", b ? @"YES" : @"NO");
-        BOOL c = [iv instancesRespondToSelector:@selector(icon)];
-        NSLog(@"[NoiseCancelToggle] SBIconView.icon: %@", c ? @"YES" : @"NO");
-    }
+    NSLog(@"[NoiseCancelToggle] v1.0.3 injected");
 }
 
 /* --- Hook 1: SBIconListView.iconTapped: --- */
 %hook SBIconListView
 - (void)iconTapped:(SBIcon *)icon {
-    NSString *bundleID = [icon applicationBundleIdentifier];
-    if ([bundleID isEqualToString:@"com.huhansibuxin.noisecanceltoggle"]) {
+    if ([[icon applicationBundleIdentifier] isEqualToString:@"com.huhansibuxin.noisecanceltoggle"]) {
         NSLog(@"[NoiseCancelToggle] iconTapped: intercepted");
         performToggle();
         return;
@@ -148,13 +132,24 @@ static BOOL performToggle(void) {
 }
 %end
 
-/* --- Hook 2: SBIconView._handleTap: (iOS 16 primary path) --- */
+/* --- Hook 2: SBIconView._handleTap: (iOS 16) --- */
 %hook SBIconView
-- (void)_handleTap:(UITapGestureRecognizer *)gesture {
+- (void)_handleTap:(id)gesture {
     SBIcon *icon = [self icon];
-    NSString *bundleID = [icon applicationBundleIdentifier];
-    if ([bundleID isEqualToString:@"com.huhansibuxin.noisecanceltoggle"]) {
+    if ([[icon applicationBundleIdentifier] isEqualToString:@"com.huhansibuxin.noisecanceltoggle"]) {
         NSLog(@"[NoiseCancelToggle] _handleTap: intercepted");
+        performToggle();
+        return;
+    }
+    %orig;
+}
+%end
+
+/* --- Hook 3: SBApplication.activate (most reliable fallback) --- */
+%hook SBApplication
+- (void)activate {
+    if ([[self bundleIdentifier] isEqualToString:@"com.huhansibuxin.noisecanceltoggle"]) {
+        NSLog(@"[NoiseCancelToggle] SBApplication.activate intercepted");
         performToggle();
         return;
     }
