@@ -20,15 +20,14 @@
 - (BOOL)application:(UIApplication *)application didFinishLaunchingWithOptions:(NSDictionary *)launchOptions {
     self.window = nil;
 
+    NSBundle *bmBundle = [NSBundle bundleWithPath:@"/var/jb/System/Library/PrivateFrameworks/BluetoothManager.framework"];
+    [bmBundle load];
+
     BluetoothManager *btMgr = [NSClassFromString(@"BluetoothManager") sharedInstance];
-    if (!btMgr) {
-        exit(0);
-    }
+    if (!btMgr) exit(0);
 
     NSArray *devices = [btMgr connectedDevices];
-    if (!devices || devices.count == 0) {
-        exit(0);
-    }
+    if (!devices.count) exit(0);
 
     for (id dev in devices) {
         if (![dev isAppleAudioDevice]) continue;
